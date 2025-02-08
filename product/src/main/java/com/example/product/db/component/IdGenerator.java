@@ -1,11 +1,13 @@
 package com.example.product.db.component;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.concurrent.atomic.AtomicLong;
 
+@Component
 public class IdGenerator
 {
     private AtomicLong atomicId = new AtomicLong(0);

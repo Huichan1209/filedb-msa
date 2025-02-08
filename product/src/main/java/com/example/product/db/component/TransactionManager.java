@@ -101,7 +101,7 @@ public class TransactionManager
         end();
     }
 
-    public void rollbackTxn() throws IOException
+    public void rollbackTxn() throws Exception
     {
         File logFile = new File(TXN_PATH);
         if (!logFile.exists()) return;
@@ -125,10 +125,9 @@ public class TransactionManager
 
                 switch (type)
                 {
-                    case 'I': repository.delete(id); break;
-                    case 'U': break;
-                    case 'D': repository.persist(new Product(id, name, price), false); break;
-
+                    case 'I': rollbackInsert(id); break;
+                    case 'U': rollbackUpdate(new Product(id, name, price)); break;
+                    case 'D': rollbackDelete(new Product(id, name, price)); break;
                 }
             }
         }
@@ -139,5 +138,20 @@ public class TransactionManager
         }
 
         end();
+    }
+
+    private void rollbackInsert(Long id) throws Exception
+    {
+        repository.delete(id, false);
+    }
+
+    private void rollbackUpdate(Product product) throws Exception
+    {
+        repository.merge(product, false);
+    }
+
+    private void rollbackDelete(Product product) throws Exception
+    {
+        repository.persist(product, false);
     }
 }

@@ -43,7 +43,7 @@ public class ProductRepository // 여기는 CRUD만 구현하고 Transaction과 
         this.datIdxLock = datIdxLock;
     }
 
-    public Product save(Product product) throws IOException
+    public Product save(Product product) throws Exception
     {
         /*
             Jpa save 메소드 동작 과정
@@ -63,12 +63,12 @@ public class ProductRepository // 여기는 CRUD만 구현하고 Transaction과 
         return this.merge(product, true);
     }
 
-    public Product persist(Product product) throws IOException
+    public Product persist(Product product) throws Exception
     {
         return persist(product, true);
     }
 
-    public Product persist(Product product, boolean logTxn) throws IOException
+    public Product persist(Product product, boolean logTxn) throws Exception
     {
         product.setId(idGenerator.getNextId());
 
@@ -122,12 +122,12 @@ public class ProductRepository // 여기는 CRUD만 구현하고 Transaction과 
         return product; // Jpa에서 persist는 영속성 컨텍스트에 등록된 동일한 객체가 리턴된다. 비슷하게 구현하기 위해 매개변수로 받은 객체를 리턴한다.
     }
 
-    public Product merge(Product product) throws IOException
+    public Product merge(Product product) throws Exception
     {
         return merge(product, true);
     }
 
-    public Product merge(Product product, boolean logTxn) throws IOException
+    public Product merge(Product product, boolean logTxn) throws Exception
     {
         /*
              jpa merge 메소드 동작 과정 정리
@@ -164,12 +164,14 @@ public class ProductRepository // 여기는 CRUD만 구현하고 Transaction과 
         datIdxLock.writeLock().lock();
 
         long newPosition;
-        try (RandomAccessFile datFile = new RandomAccessFile(DAT_PATH, "rw"))
+        try (RandomAccessFile datFile = new RandomAccessFile(DAT_PATH, "rw");
+             RandomAccessFile idxFile = new RandomAccessFile(IDX_PATH, "rw"))
         {
             datFile.getChannel().lock();
+            idxFile.getChannel().lock();
 
             newPosition = datFile.length();
-            datFile.seek(newPosition);
+            datFile.seek(newPosition); // 파일 맨 뒤에 새로 값을 저장하기 위해 마지막으로 이동
 
             datFile.writeInt(3); // [필드 수]
 
@@ -182,28 +184,25 @@ public class ProductRepository // 여기는 CRUD만 구현하고 Transaction과 
 
             datFile.writeInt(4); // [price값 길이]
             datFile.writeInt(product.getPrice());
-        }
-        catch (IOException e)
-        {
-            if(logTxn) { tm.rollbackTxn(); }
-            throw e;
-        }
 
-        try (RandomAccessFile idxFile = new RandomAccessFile(IDX_PATH, "rw"))
-        {
-            idxFile.getChannel().lock();
-            long length = idxFile.length();
-            while (idxFile.getFilePointer() < length)
+            long idxFileLength = idxFile.length();
+            while (idxFile.getFilePointer() < idxFileLength)
             {
                 long storedId = idxFile.readLong();
                 long position = idxFile.readLong();
                 if (storedId == product.getId())
                 {
                     idxFile.seek(idxFile.getFilePointer() - 8); // long 한칸 앞으로
-                    idxFile.writeLong(newPosition); // 새로운 position 덮어쓰기
+                    idxFile.writeLong(newPosition); // 새로 저장한 position으로 덮어쓰기. 얘는 고정 크기 방식이기 때문에 dat 파일과 달리 덮어씌워도 됨.
+                    // 참조가 끊긴 기존 데이터는 가비지 컬렉터에 의해 자동으로 청소됨
                     break;
                 }
             }
+        }
+        catch (IOException e)
+        {
+            if(logTxn) { tm.rollbackTxn(); }
+            throw e;
         }
         finally
         {
@@ -271,12 +270,12 @@ public class ProductRepository // 여기는 CRUD만 구현하고 Transaction과 
         return Optional.empty();
     }
 
-    public void delete(long id) throws IOException
+    public void delete(long id) throws Exception
     {
         delete(id, true);
     }
 
-    public void delete(long id, boolean logTxn) throws IOException
+    public void delete(long id, boolean logTxn) throws Exception
     {
         Product findProduct = findById(id).orElseGet(null);
         if (findProduct == null)

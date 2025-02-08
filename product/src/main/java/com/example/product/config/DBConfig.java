@@ -20,10 +20,4 @@ public class DBConfig
     {
         return new ReentrantReadWriteLock();
     }
-
-    @Bean
-    public IdGenerator idGenerator()
-    {
-        return new IdGenerator();
-    }
 }
