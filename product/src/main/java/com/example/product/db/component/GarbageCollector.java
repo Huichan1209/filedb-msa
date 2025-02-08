@@ -2,6 +2,7 @@ package com.example.product.db.component;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
@@ -33,6 +34,8 @@ public class GarbageCollector
         this.datIdxLock = datIdxLock;
     }
 
+    // 매일 새벽 3시에 clean
+    @Scheduled(cron = "0 0 3 * * *")
     public void clean() throws IOException
     {
         datIdxLock.writeLock().lock();
