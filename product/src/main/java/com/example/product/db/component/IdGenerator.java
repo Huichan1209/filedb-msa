@@ -1,7 +1,6 @@
-package com.example.product.db;
+package com.example.product.db.component;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.io.RandomAccessFile;

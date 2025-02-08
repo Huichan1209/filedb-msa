@@ -1,5 +1,6 @@
-package com.example.product.db;
+package com.example.product.db.component;
 
+import com.example.product.db.constant.TransactionStatus;
 import com.example.product.domain.Product;
 import com.example.product.repository.ProductRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +31,8 @@ public class TransactionManager
 
     private final ReentrantReadWriteLock txnLock;
 
+    private TransactionStatus status = TransactionStatus.READY;
+
     @Autowired
     public TransactionManager(@Lazy ProductRepository repository, @Qualifier("txnLock")ReentrantReadWriteLock txnLock) // 순환참조 이슈 방지를 위한 @Lazy 설정
     {
@@ -37,9 +40,43 @@ public class TransactionManager
         this.txnLock = txnLock;
     }
 
+    public void begin() throws IOException
+    {
+        if(status != TransactionStatus.READY)
+        {
+            throw new RuntimeException("[TransactionManager] 트랜잭션이 READY 상태가 아님");
+        }
+
+        txnLock.writeLock().lock();
+        clearLog();
+        status = TransactionStatus.ACTIVE;
+    }
+
+    public void end() throws IOException
+    {
+        if(status != TransactionStatus.ACTIVE)
+        {
+            throw new RuntimeException("[TransactionManager] 트랜잭션이 ACTIVE 상태가 아님");
+        }
+
+        clearLog();
+        txnLock.writeLock().unlock();
+        status = TransactionStatus.READY;
+    }
+
+    private void clearLog() throws IOException
+    {
+        // 로그 파일 비우기
+        Files.newBufferedWriter(Paths.get(TXN_PATH), StandardOpenOption.TRUNCATE_EXISTING).close();
+    }
+
     public void writeTxnLog(char type, Product product) throws IOException
     {
-        txnLock.writeLock().lock();
+        if(status != TransactionStatus.ACTIVE)
+        {
+            throw new RuntimeException("[TransactionManager] 트랜잭션이 ACTIVE 상태가 아님");
+        }
+
         try (RandomAccessFile logFile = new RandomAccessFile(TXN_PATH, "rw"))
         {
             logFile.seek(logFile.length());
@@ -52,16 +89,16 @@ public class TransactionManager
             logFile.writeInt(4);
             logFile.writeInt(product.getPrice());
         }
-        finally
+        catch (IOException e)
         {
-            txnLock.writeLock().unlock();
+            System.out.println("[TransactionManager] 로그 write 중 Exception 발생");
+            throw e;
         }
     }
 
     public void commitTxnLog() throws IOException
     {
-        // 로그 파일 비우기
-        Files.newBufferedWriter(Paths.get(TXN_PATH), StandardOpenOption.TRUNCATE_EXISTING).close();
+        end();
     }
 
     public void rollbackTxn() throws IOException
@@ -86,21 +123,21 @@ public class TransactionManager
                 int priceLength = logReader.readInt();
                 int price = logReader.readInt();
 
-                if (type == 'I')
+                switch (type)
                 {
-                    repository.delete(id);
-                }
-                else if (type == 'U')
-                {
-                    // TODO
-                }
-                else if (type == 'D')
-                {
-                    repository.persist(new Product(id, name, price), false);
+                    case 'I': repository.delete(id); break;
+                    case 'U': break;
+                    case 'D': repository.persist(new Product(id, name, price), false); break;
+
                 }
             }
         }
+        catch (Exception e)
+        {
+            System.out.println("[TransactionManager] rollback 중 Exception 발생");
+            throw e;
+        }
 
-        commitTxnLog();
+        end();
     }
 }

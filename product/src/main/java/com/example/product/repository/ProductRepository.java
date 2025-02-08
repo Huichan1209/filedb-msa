@@ -1,7 +1,7 @@
 package com.example.product.repository;
 
-import com.example.product.db.IdGenerator;
-import com.example.product.db.TransactionManager;
+import com.example.product.db.component.IdGenerator;
+import com.example.product.db.component.TransactionManager;
 import com.example.product.domain.Product;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -72,8 +72,11 @@ public class ProductRepository // 여기는 CRUD만 구현하고 Transaction과 
     {
         product.setId(idGenerator.getNextId());
 
-        // 트랜잭션 로그 기록
-        if(logTxn) { tm.writeTxnLog('I', product); }
+        if(logTxn)
+        {
+            tm.begin(); // 트랜잭션 시작
+            tm.writeTxnLog('I', product); // 트랜잭션 로그 기록
+        }
 
         // 이 어플리케이션 내에서 쓰레드간 충돌을 방지
         datIdxLock.writeLock().lock();
@@ -116,7 +119,7 @@ public class ProductRepository // 여기는 CRUD만 구현하고 Transaction과 
         }
 
         if(logTxn) { tm.commitTxnLog(); } // 트랜잭션 커밋
-        return product; // Jpa에서 persist는 영속성 컨텍스트에 등록된 동일한 객체가 리턴된다.
+        return product; // Jpa에서 persist는 영속성 컨텍스트에 등록된 동일한 객체가 리턴된다. 비슷하게 구현하기 위해 매개변수로 받은 객체를 리턴한다.
     }
 
     public Product merge(Product product) throws IOException
@@ -129,7 +132,7 @@ public class ProductRepository // 여기는 CRUD만 구현하고 Transaction과 
         /*
              jpa merge 메소드 동작 과정 정리
              1. 병합할 엔티티의 id 확인
-                1-1. id가 null인 경우 insert 준비
+                1-1. id가 null인 경우 신규 insert
                 1-2. id가 있으면 영속성 컨텍스트에서 찾아옴
                     1-2-1. 영속성 컨텍스트에 있으면 가져와서 병합
                     1-2-2. 영속성 컨텍스트에 없으면 DB 조회
@@ -139,7 +142,77 @@ public class ProductRepository // 여기는 CRUD만 구현하고 Transaction과 
              3. 새로운 영속 엔티티 return
         */
 
-        return null;
+        if(product.getId() == null)
+        {
+            persist(product, true);
+            return new Product(product.getId(), product.getName(), product.getPrice()); // 새로운 엔티티 return
+        }
+
+        Product findProduct = findById(product.getId()).orElseGet(null);
+        if(findProduct == null)
+        {
+            persist(product, true);
+            return new Product(product.getId(), product.getName(), product.getPrice()); // 새로운 엔티티 return
+        }
+
+        if(logTxn)
+        {
+            tm.begin();
+            tm.writeTxnLog('U', findProduct); // 트랜잭션 로그에 업데이트 이전 데이터 기록
+        }
+
+        datIdxLock.writeLock().lock();
+
+        long newPosition;
+        try (RandomAccessFile datFile = new RandomAccessFile(DAT_PATH, "rw"))
+        {
+            datFile.getChannel().lock();
+
+            newPosition = datFile.length();
+            datFile.seek(newPosition);
+
+            datFile.writeInt(3); // [필드 수]
+
+            datFile.writeInt(8); // [id값 길이]
+            datFile.writeLong(product.getId()); // [id 값]
+
+            byte[] nameBytes = product.getName().getBytes();
+            datFile.writeInt(nameBytes.length); // [name값 길이]
+            datFile.write(nameBytes); // [name값]
+
+            datFile.writeInt(4); // [price값 길이]
+            datFile.writeInt(product.getPrice());
+        }
+        catch (IOException e)
+        {
+            if(logTxn) { tm.rollbackTxn(); }
+            throw e;
+        }
+
+        try (RandomAccessFile idxFile = new RandomAccessFile(IDX_PATH, "rw"))
+        {
+            idxFile.getChannel().lock();
+            long length = idxFile.length();
+            while (idxFile.getFilePointer() < length)
+            {
+                long storedId = idxFile.readLong();
+                long position = idxFile.readLong();
+                if (storedId == product.getId())
+                {
+                    idxFile.seek(idxFile.getFilePointer() - 8); // long 한칸 앞으로
+                    idxFile.writeLong(newPosition); // 새로운 position 덮어쓰기
+                    break;
+                }
+            }
+        }
+        finally
+        {
+            datIdxLock.writeLock().unlock();
+        }
+
+        if(logTxn) { tm.commitTxnLog(); }
+
+        return new Product(product.getId(), product.getName(), product.getPrice()); // 새로운 엔티티 return
     }
 
     public Optional<Product> findById(long id) throws IOException
@@ -203,7 +276,7 @@ public class ProductRepository // 여기는 CRUD만 구현하고 Transaction과 
         delete(id, true);
     }
 
-    public void delete(long id, boolean logTxn) throws  IOException
+    public void delete(long id, boolean logTxn) throws IOException
     {
         Product findProduct = findById(id).orElseGet(null);
         if (findProduct == null)
@@ -212,7 +285,12 @@ public class ProductRepository // 여기는 CRUD만 구현하고 Transaction과 
             return;
         }
 
-        if(logTxn) { tm.writeTxnLog('D', findProduct); }
+        if(logTxn)
+        {
+            tm.begin();
+            tm.writeTxnLog('D', findProduct);
+        }
+
         datIdxLock.writeLock().lock();
 
         try (RandomAccessFile idxFile = new RandomAccessFile(IDX_PATH, "rw"))
@@ -242,6 +320,6 @@ public class ProductRepository // 여기는 CRUD만 구현하고 Transaction과 
             datIdxLock.writeLock().unlock();
         }
 
-        tm.commitTxnLog();
+        if(logTxn) { tm.commitTxnLog(); }
     }
 }
