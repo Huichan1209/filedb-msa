@@ -21,10 +21,10 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 @Repository
 public class ProductRepository // 여기는 CRUD만 구현하고 Transaction과 GC는 분리해서 구현함.
 {
-    @Value("${config.path.db}/dat/product.dat")
+    @Value("${config.db.path}/dat/product.dat")
     private String DAT_PATH;
 
-    @Value("${config.path.db}/idx/product.idx")
+    @Value("${config.db.path}/idx/product.idx")
     private String IDX_PATH;
 
     private final TransactionManager tm;
@@ -115,7 +115,7 @@ public class ProductRepository // 여기는 CRUD만 구현하고 Transaction과 
         }
         finally
         {
-            datIdxLock.writeLock().unlock();
+            datIdxLock.writeLock().unlock(); // try-finally로 lock 해제를 보장.
         }
 
         if(logTxn) { tm.commitTxnLog(); } // 트랜잭션 커밋
@@ -162,7 +162,6 @@ public class ProductRepository // 여기는 CRUD만 구현하고 Transaction과 
         }
 
         datIdxLock.writeLock().lock();
-
         long newPosition;
         try (RandomAccessFile datFile = new RandomAccessFile(DAT_PATH, "rw");
              RandomAccessFile idxFile = new RandomAccessFile(IDX_PATH, "rw"))
@@ -244,19 +243,48 @@ public class ProductRepository // 여기는 CRUD만 구현하고 Transaction과 
             // idx파일에 data의 위치가 있다면 dat 파일에서 조회한다.
             if(position != -1)
             {
+                /*
+                if (storedId == id) {
+                    dataFile.seek(position);
+                    int fieldCount = dataFile.readInt();
+                    if (fieldCount != 3) {
+                        throw new IOException("Invalid field count. Expected 3, found " + fieldCount);
+                    }
+                    int idLength = dataFile.readInt();
+                    if (idLength != 8) {
+                        throw new IOException("Invalid ID length. Expected 8, found " + idLength);
+                    }
+                    long productId = dataFile.readLong();
+                    int nameLength = dataFile.readInt();
+                    byte[] nameBytes = new byte[nameLength];
+                    dataFile.readFully(nameBytes);
+                    String name = new String(nameBytes);
+                    int priceLength = dataFile.readInt();
+                    if (priceLength != 4) {
+                        throw new IOException("Invalid price length. Expected 4, found " + priceLength);
+                    }
+                    int price = dataFile.readInt();
+                    return Optional.of(new Product(productId, name, price));
+                }
+                 */
                 datFile.seek(position);
 
                 int fieldCount = datFile.readInt(); // [필드 수]
+                if (fieldCount != 3) { throw new IOException("[Repository.findById] 저장된 필드의 수가 3이 아님. fieldCount: " + fieldCount); }
 
                 int idLength = datFile.readInt(); // [id 값 길이]
+                if (idLength != 8) { throw new IOException("[Repository.findById] 저장된 id의 길이가 8이 아님. idLength: " + idLength); }
+
                 long findId = datFile.readLong(); // [id 값]
 
-                int nameLength = datFile.readInt(); // [name 값 길이]
+                int nameLength = datFile.readInt(); // [name 값 길이] 가변길이라 validation 생략
                 byte[] nameBytes = new byte[nameLength];
                 datFile.readFully(nameBytes);
                 String findName = new String(nameBytes); // [name 값]
 
                 int priceLength = datFile.readInt(); // [price 값 길이]
+                if (priceLength != 4) { throw new IOException("[Repository.findById] 저장된 price의 길이가 4가 아님. fieldCount: " + fieldCount); }
+
                 int findPrice = datFile.readInt(); // [price 값]
 
                 return Optional.of(new Product(findId, findName, findPrice));
