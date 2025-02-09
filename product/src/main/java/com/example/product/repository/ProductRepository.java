@@ -21,10 +21,10 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 @Repository
 public class ProductRepository // 여기는 CRUD만 구현하고 Transaction과 GC는 분리해서 구현함.
 {
-    @Value("${config.db.path}/dat/product.dat")
+    @Value("${config.db.path}/dat/${config.db.domain}.dat")
     private String DAT_PATH;
 
-    @Value("${config.db.path}/idx/product.idx")
+    @Value("${config.db.path}/idx/${config.db.domain}.idx")
     private String IDX_PATH;
 
     private final TransactionManager tm;

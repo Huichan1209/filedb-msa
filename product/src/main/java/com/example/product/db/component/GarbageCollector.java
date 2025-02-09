@@ -15,16 +15,16 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 @Component
 public class GarbageCollector
 {
-    @Value("${config.db.path}/dat/product.dat")
+    @Value("${config.db.path}/dat/${config.db.domain}.dat")
     private String DAT_PATH;
 
-    @Value("${config.db.path}/dat/product_tmp.dat")
+    @Value("${config.db.path}/dat/${config.db.domain}_tmp.dat")
     private String TMP_DAT_PATH;
 
-    @Value("${config.db.path}/idx/product.idx")
+    @Value("${config.db.path}/idx/${config.db.domain}.idx")
     private String IDX_PATH;
 
-    @Value("${config.db.path}/idx/product_tmp.idx")
+    @Value("${config.db.path}/idx/${config.db.domain}_tmp.idx")
     private String TMP_IDX_PATH;
 
     private final ReentrantReadWriteLock datIdxLock;

@@ -24,7 +24,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 @Component
 public class TransactionManager
 {
-    @Value("${config.db.path}/txn/product.txn")
+    @Value("${config.db.path}/txn/${config.db.domain}.txn")
     private String TXN_PATH;
 
     private final ProductRepository repository;

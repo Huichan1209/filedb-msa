@@ -16,5 +16,10 @@ public class ProductController
         this.service = service;
     }
 
+    @GetMapping("/test")
+    public String test()
+    {
+        return "product test";
+    }
 
 }

@@ -15,7 +15,7 @@ public class IdGenerator
 {
     private AtomicLong atomicId = new AtomicLong(0);
 
-    @Value("${config.db.path}/idx/product.idx")
+    @Value("${config.db.path}/idx/${config.db.domain}.idx")
     private String IDX_PATH;
 
     @PostConstruct

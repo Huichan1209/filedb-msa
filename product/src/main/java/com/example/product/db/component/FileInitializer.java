@@ -11,9 +11,9 @@ import java.io.IOException;
 @Component("fileInitializer")
 public class FileInitializer
 {
-    public FileInitializer(@Value("${config.db.path}/dat/product.dat") String DAT_PATH,
-                           @Value("${config.db.path}/idx/product.idx") String IDX_PATH,
-                           @Value("${config.db.path}/txn/product.txn") String TXN_PATH) throws Exception
+    public FileInitializer(@Value("${config.db.path}/dat/${config.db.domain}.dat") String DAT_PATH,
+                           @Value("${config.db.path}/idx/${config.db.domain}.idx") String IDX_PATH,
+                           @Value("${config.db.path}/txn/${config.db.domain}.txn") String TXN_PATH) throws Exception
     {
         File datFile = new File(DAT_PATH);
         File idxFile = new File(IDX_PATH);
