@@ -2,6 +2,9 @@ package com.example.product.repository;
 
 import com.example.product.db.component.IdGenerator;
 import com.example.product.db.component.TransactionManager;
+import com.example.product.db.paging.Page;
+import com.example.product.db.paging.Pageable;
+import com.example.product.db.paging.Sort;
 import com.example.product.domain.Product;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -10,7 +13,7 @@ import org.springframework.stereotype.Repository;
 
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
@@ -36,7 +39,7 @@ public class ProductRepository // 여기는 CRUD만 구현하고 Transaction과 
     @Autowired
     public ProductRepository(TransactionManager tm,
                              IdGenerator idGenerator,
-                             @Qualifier("datIdxLock")ReentrantReadWriteLock datIdxLock)
+                             @Qualifier("datIdxLock") ReentrantReadWriteLock datIdxLock)
     {
         this.tm = tm;
         this.idGenerator = idGenerator;
@@ -55,7 +58,7 @@ public class ProductRepository // 여기는 CRUD만 구현하고 Transaction과 
                     1-2-1-2. 존재하지 않으면 persist
         */
 
-        if(product.getId() == null)
+        if (product.getId() == null)
         {
             return this.persist(product, true);
         }
@@ -72,7 +75,7 @@ public class ProductRepository // 여기는 CRUD만 구현하고 Transaction과 
     {
         product.setId(idGenerator.getNextId());
 
-        if(logTxn)
+        if (logTxn)
         {
             tm.begin(); // 트랜잭션 시작
             tm.writeTxnLog('I', product); // 트랜잭션 로그 기록
@@ -110,7 +113,10 @@ public class ProductRepository // 여기는 CRUD만 구현하고 Transaction과 
         }
         catch (IOException e)
         {
-            if(logTxn) { tm.rollbackTxn(); }
+            if (logTxn)
+            {
+                tm.rollbackTxn();
+            }
             throw e;
         }
         finally
@@ -118,7 +124,10 @@ public class ProductRepository // 여기는 CRUD만 구현하고 Transaction과 
             datIdxLock.writeLock().unlock(); // try-finally로 lock 해제를 보장.
         }
 
-        if(logTxn) { tm.commitTxnLog(); } // 트랜잭션 커밋
+        if (logTxn)
+        {
+            tm.commitTxnLog();
+        } // 트랜잭션 커밋
         return product; // Jpa에서 persist는 영속성 컨텍스트에 등록된 동일한 객체가 리턴된다. 비슷하게 구현하기 위해 매개변수로 받은 객체를 리턴한다.
     }
 
@@ -142,20 +151,20 @@ public class ProductRepository // 여기는 CRUD만 구현하고 Transaction과 
              3. 새로운 영속 엔티티 return
         */
 
-        if(product.getId() == null)
+        if (product.getId() == null)
         {
             persist(product, true);
             return new Product(product.getId(), product.getName(), product.getPrice()); // 새로운 엔티티 return
         }
 
         Product findProduct = findById(product.getId()).orElseGet(null);
-        if(findProduct == null)
+        if (findProduct == null)
         {
             persist(product, true);
             return new Product(product.getId(), product.getName(), product.getPrice()); // 새로운 엔티티 return
         }
 
-        if(logTxn)
+        if (logTxn)
         {
             tm.begin();
             tm.writeTxnLog('U', findProduct); // 트랜잭션 로그에 업데이트 이전 데이터 기록
@@ -200,7 +209,10 @@ public class ProductRepository // 여기는 CRUD만 구현하고 Transaction과 
         }
         catch (IOException e)
         {
-            if(logTxn) { tm.rollbackTxn(); }
+            if (logTxn)
+            {
+                tm.rollbackTxn();
+            }
             throw e;
         }
         finally
@@ -208,9 +220,70 @@ public class ProductRepository // 여기는 CRUD만 구현하고 Transaction과 
             datIdxLock.writeLock().unlock();
         }
 
-        if(logTxn) { tm.commitTxnLog(); }
+        if (logTxn)
+        {
+            tm.commitTxnLog();
+        }
 
         return new Product(product.getId(), product.getName(), product.getPrice()); // 새로운 엔티티 return
+    }
+
+    public void delete(long id) throws Exception
+    {
+        delete(id, true);
+    }
+
+    public void delete(long id, boolean logTxn) throws Exception
+    {
+        Product findProduct = findById(id).orElseGet(null);
+        if (findProduct == null)
+        {
+            System.out.println("[delete] data not found. id: " + id);
+            return;
+        }
+
+        if (logTxn)
+        {
+            tm.begin();
+            tm.writeTxnLog('D', findProduct);
+        }
+
+        datIdxLock.writeLock().lock();
+
+        try (RandomAccessFile idxFile = new RandomAccessFile(IDX_PATH, "rw"))
+        {
+            idxFile.getChannel().lock();
+
+            long length = idxFile.length();
+            while (idxFile.getFilePointer() < length)
+            {
+                long storedId = idxFile.readLong();
+                long position = idxFile.readLong();
+                if (storedId == id)
+                {
+                    idxFile.seek(idxFile.getFilePointer() - 16); // long 2칸 앞으로
+                    idxFile.writeLong(-1); // id를 -1로 설정해서 참조되지 않는 데이터로 바꿈 (연결이 끊긴 데이터는 가비지 컬렉터에 의해 한번에 정리됨)
+                    return;
+                }
+            }
+        }
+        catch (IOException e)
+        {
+            if (logTxn)
+            {
+                tm.rollbackTxn();
+            }
+            throw e;
+        }
+        finally
+        {
+            datIdxLock.writeLock().unlock();
+        }
+
+        if (logTxn)
+        {
+            tm.commitTxnLog();
+        }
     }
 
     public Optional<Product> findById(long id) throws IOException
@@ -241,39 +314,21 @@ public class ProductRepository // 여기는 CRUD만 구현하고 Transaction과 
             }
 
             // idx파일에 data의 위치가 있다면 dat 파일에서 조회한다.
-            if(position != -1)
+            if (position != -1)
             {
-                /*
-                if (storedId == id) {
-                    dataFile.seek(position);
-                    int fieldCount = dataFile.readInt();
-                    if (fieldCount != 3) {
-                        throw new IOException("Invalid field count. Expected 3, found " + fieldCount);
-                    }
-                    int idLength = dataFile.readInt();
-                    if (idLength != 8) {
-                        throw new IOException("Invalid ID length. Expected 8, found " + idLength);
-                    }
-                    long productId = dataFile.readLong();
-                    int nameLength = dataFile.readInt();
-                    byte[] nameBytes = new byte[nameLength];
-                    dataFile.readFully(nameBytes);
-                    String name = new String(nameBytes);
-                    int priceLength = dataFile.readInt();
-                    if (priceLength != 4) {
-                        throw new IOException("Invalid price length. Expected 4, found " + priceLength);
-                    }
-                    int price = dataFile.readInt();
-                    return Optional.of(new Product(productId, name, price));
-                }
-                 */
                 datFile.seek(position);
 
                 int fieldCount = datFile.readInt(); // [필드 수]
-                if (fieldCount != 3) { throw new IOException("[Repository.findById] 저장된 필드의 수가 3이 아님. fieldCount: " + fieldCount); }
+                if (fieldCount != 3)
+                {
+                    throw new IOException("[Repository.findById] 저장된 필드의 수가 3이 아님. fieldCount: " + fieldCount);
+                }
 
                 int idLength = datFile.readInt(); // [id 값 길이]
-                if (idLength != 8) { throw new IOException("[Repository.findById] 저장된 id의 길이가 8이 아님. idLength: " + idLength); }
+                if (idLength != 8)
+                {
+                    throw new IOException("[Repository.findById] 저장된 id의 길이가 8이 아님. idLength: " + idLength);
+                }
 
                 long findId = datFile.readLong(); // [id 값]
 
@@ -283,7 +338,10 @@ public class ProductRepository // 여기는 CRUD만 구현하고 Transaction과 
                 String findName = new String(nameBytes); // [name 값]
 
                 int priceLength = datFile.readInt(); // [price 값 길이]
-                if (priceLength != 4) { throw new IOException("[Repository.findById] 저장된 price의 길이가 4가 아님. fieldCount: " + fieldCount); }
+                if (priceLength != 4)
+                {
+                    throw new IOException("[Repository.findById] 저장된 price의 길이가 4가 아님. priceLength: " + priceLength);
+                }
 
                 int findPrice = datFile.readInt(); // [price 값]
 
@@ -298,55 +356,142 @@ public class ProductRepository // 여기는 CRUD만 구현하고 Transaction과 
         return Optional.empty();
     }
 
-    public void delete(long id) throws Exception
+    public Page<Product> findAll(Pageable pageable) throws IOException
     {
-        delete(id, true);
-    }
+        datIdxLock.readLock().lock();
 
-    public void delete(long id, boolean logTxn) throws Exception
-    {
-        Product findProduct = findById(id).orElseGet(null);
-        if (findProduct == null)
+        List<Product> products = new ArrayList<>();
+        List<Map.Entry<Long, Long>> indexList = new ArrayList<>();
+
+        try (RandomAccessFile idxFile = new RandomAccessFile(IDX_PATH, "r");
+             RandomAccessFile datFile = new RandomAccessFile(DAT_PATH, "r"))
         {
-            System.out.println("[delete] data not found. id: " + id);
-            return;
-        }
-
-        if(logTxn)
-        {
-            tm.begin();
-            tm.writeTxnLog('D', findProduct);
-        }
-
-        datIdxLock.writeLock().lock();
-
-        try (RandomAccessFile idxFile = new RandomAccessFile(IDX_PATH, "rw"))
-        {
-            idxFile.getChannel().lock();
-
-            long length = idxFile.length();
-            while (idxFile.getFilePointer() < length)
+            while (idxFile.getFilePointer() < idxFile.length())
             {
-                long storedId = idxFile.readLong();
+                long id = idxFile.readLong();
                 long position = idxFile.readLong();
-                if (storedId == id)
+                indexList.add(new AbstractMap.SimpleEntry<>(id, position));
+            }
+
+            // 정렬 처리
+            Sort sort = pageable.getSort();
+            Comparator<Map.Entry<Long, Long>> comparator = Comparator.comparing(Map.Entry::getKey);
+
+            if (sort != null && !sort.isUnsorted())
+            {
+                String sortBy = sort.getProperty();
+                boolean ascending = sort.isAscending();
+
+                if ("name".equalsIgnoreCase(sortBy))  // name 기준 정렬
                 {
-                    idxFile.seek(idxFile.getFilePointer() - 16); // long 2칸 앞으로
-                    idxFile.writeLong(-1); // id를 -1로 설정해서 참조되지 않는 데이터로 바꿈 (연결이 끊긴 데이터는 가비지 컬렉터에 의해 한번에 정리됨)
-                    return;
+                    comparator = Comparator.comparing(entry ->
+                    {
+                        try
+                        {
+                            datFile.seek(entry.getValue());
+                            datFile.readInt();  // 필드 수
+                            datFile.readInt();  // ID 길이
+                            datFile.readLong(); // ID 값
+
+                            int nameLength = datFile.readInt();
+                            byte[] nameBytes = new byte[nameLength];
+                            datFile.readFully(nameBytes);
+                            return new String(nameBytes);  // name 값 String
+                        }
+                        catch (IOException e)
+                        {
+                            return "";
+                        }
+                    });
+                }
+                else if ("price".equalsIgnoreCase(sortBy)) // price 기준 정렬
+                {
+                    comparator = Comparator.comparingInt(entry ->
+                    {
+                        try
+                        {
+                            datFile.seek(entry.getValue());
+                            datFile.readInt();  // 필드 수
+                            datFile.readInt();  // ID 길이
+                            datFile.readLong(); // ID 값
+
+                            int nameLength = datFile.readInt();
+                            datFile.skipBytes(nameLength);
+                            datFile.readInt();  // 가격 길이
+                            
+                            return datFile.readInt(); // 가격 값
+                        }
+                        catch (IOException e)
+                        {
+                            return 0;
+                        }
+                    });
+                }
+                else
+                {
+                    comparator = Comparator.comparing(Map.Entry::getKey); // ID 기준 기본 정렬
+                }
+
+                if (!ascending)
+                {
+                    comparator = comparator.reversed();
                 }
             }
-        }
-        catch (IOException e)
-        {
-            if(logTxn) { tm.rollbackTxn(); }
-            throw e;
+
+            indexList.sort(comparator);
+
+            // 페이징 처리
+            int page = pageable.getPageNumber();
+            int size = pageable.getPageSize();
+            int startIndex = (page - 1) * size;
+            if (startIndex >= indexList.size())
+            {
+                // 최대 페이지 초과시 빈페이지 반환
+                return new Page<>(Collections.emptyList(), page, size, indexList.size(), pageable.getSort());
+            }
+
+            int endIndex = Math.min(startIndex + size, indexList.size());
+
+            // 데이터 읽기
+            for (int i = startIndex; i < endIndex; i++)
+            {
+                long position = indexList.get(i).getValue();
+                datFile.seek(position);
+
+                int fieldCount = datFile.readInt();
+                if (fieldCount != 3)
+                {
+                    throw new IOException("[Repository.findAll] 저장된 필드의 수가 3이 아님. fieldCount: " + fieldCount);
+                }
+
+                int idLength = datFile.readInt();
+                if (idLength != 8)
+                {
+                    throw new IOException("[Repository.findAll] 저장된 id의 길이가 8이 아님. idLength: " + idLength);
+                }
+
+                long productId = datFile.readLong();
+                int nameLength = datFile.readInt();
+                byte[] nameBytes = new byte[nameLength];
+                datFile.readFully(nameBytes);
+                String name = new String(nameBytes);
+
+                int priceLength = datFile.readInt();
+                if (priceLength != 4)
+                {
+                    throw new IOException("[Repository.findAll] 저장된 price의 길이가 4가 아님. priceLength: " + priceLength);
+                }
+
+                int price = datFile.readInt();
+
+                products.add(new Product(productId, name, price));
+            }
         }
         finally
         {
-            datIdxLock.writeLock().unlock();
+            datIdxLock.readLock().unlock();
         }
 
-        if(logTxn) { tm.commitTxnLog(); }
+        return new Page<>(products, pageable.getPageNumber(), pageable.getPageSize(), indexList.size(), pageable.getSort());
     }
 }

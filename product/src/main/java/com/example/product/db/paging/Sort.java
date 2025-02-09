@@ -6,59 +6,77 @@ import java.util.List;
 
 public class Sort
 {
-    private final List<Order> orders;
+    private final String property;
+    private final Direction direction;
 
-    public Sort(List<Order> orders)
+    private static final Sort UNSORTED = new Sort(null, null);
+
+    public Sort(String property, Direction direction)
     {
-        this.orders = orders;
+        this.property = property;
+        this.direction = direction;
     }
 
-    public static Sort by(Direction direction, String... properties)
+    public String getProperty()
     {
-        List<Order> orders = new ArrayList<>();
-        for (String property : properties)
-        {
-            orders.add(new Order(direction, property));
-        }
+        return property;
+    }
 
-        return new Sort(orders);
+    public Direction getDirection()
+    {
+        return direction;
+    }
+
+    public boolean isAscending()
+    {
+        return this.direction == Direction.ASC;
+    }
+
+    public static Sort by(String property)
+    {
+        return new Sort(property, Direction.ASC);
+    }
+
+    public static Sort by(String property, Direction direction)
+    {
+        return new Sort(property, direction);
+    }
+
+    public static Sort byDescending(String property)
+    {
+        return new Sort(property, Direction.DESC);
     }
 
     public static Sort unsorted()
     {
-        return new Sort(Collections.emptyList());
+        return UNSORTED;
     }
 
-    public List<Order> getOrders()
+    public boolean isUnsorted()
     {
-        return orders;
-    }
-
-    public static class Order
-    {
-        private final Direction direction;
-        private final String property;
-
-        public Order(Direction direction, String property)
-        {
-            this.direction = direction;
-            this.property = property;
-        }
-
-        public Direction getDirection()
-        {
-            return direction;
-        }
-
-        public String getProperty()
-        {
-            return property;
-        }
+        return this.property == null && this.direction == null;
     }
 
     public enum Direction
     {
         ASC,
         DESC;
+
+        public static Direction fromString(String value)
+        {
+            if (value == null || value.trim().isEmpty())
+            {
+                throw new IllegalArgumentException("Direction 값은 null 또는 빈 문자열일 수 없습니다.");
+            }
+            switch (value.trim().toUpperCase())
+            {
+                case "ASC":
+                    return ASC;
+                case "DESC":
+                    return DESC;
+                default:
+                    return ASC;
+            }
+        }
     }
 }

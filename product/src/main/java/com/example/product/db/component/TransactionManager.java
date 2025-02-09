@@ -34,7 +34,8 @@ public class TransactionManager
     private TransactionStatus status = TransactionStatus.READY;
 
     @Autowired
-    public TransactionManager(@Lazy ProductRepository repository, @Qualifier("txnLock")ReentrantReadWriteLock txnLock) // 순환참조 이슈 방지를 위한 @Lazy 설정
+    public TransactionManager(@Lazy ProductRepository repository, // 순환참조 이슈 방지를 위한 @Lazy 설정
+                              @Qualifier("txnLock")ReentrantReadWriteLock txnLock)
     {
         this.repository = repository;
         this.txnLock = txnLock;
