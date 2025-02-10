@@ -1,8 +1,8 @@
-package com.example.product.db.component;
+package com.example.order.db.component;
 
-import com.example.product.db.constant.TransactionStatus;
-import com.example.product.domain.Product;
-import com.example.product.repository.ProductRepository;
+import com.example.order.db.constant.TransactionStatus;
+import com.example.order.domain.Order;
+import com.example.order.repository.OrderRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,14 +27,14 @@ public class TransactionManager
     @Value("${config.db.path}/txn/${config.db.domain}.txn")
     private String TXN_PATH;
 
-    private final ProductRepository repository;
+    private final OrderRepository repository;
 
     private final ReentrantReadWriteLock txnLock;
 
     private TransactionStatus status = TransactionStatus.IDLE;
 
     @Autowired
-    public TransactionManager(@Lazy ProductRepository repository, // 순환참조 이슈 방지를 위한 @Lazy 설정
+    public TransactionManager(@Lazy OrderRepository repository, // 순환참조 이슈 방지를 위한 @Lazy 설정
                               @Qualifier("txnLock")ReentrantReadWriteLock txnLock)
     {
         this.repository = repository;
@@ -71,8 +71,8 @@ public class TransactionManager
         Files.newBufferedWriter(Paths.get(TXN_PATH), StandardOpenOption.TRUNCATE_EXISTING).close();
     }
 
-    // TODO 시간이 남으면 Product 도메인에 의존적이지 않은 형태로 Entity 인터페이스를 만든다던가 해서 라이브러리로 분리할 수 있도록 개선..
-    public void writeTxnLog(char type, Product product) throws IOException
+    // TODO 시간이 남으면 도메인에 의존적이지 않은 형태로 Entity 인터페이스를 만든다던가 해서 독립적인 라이브러리로 분리할 수 있도록 개선..
+    public void writeTxnLog(char type, Order order) throws IOException
     {
         if(status != TransactionStatus.ACTIVE)
         {
@@ -86,17 +86,13 @@ public class TransactionManager
             logFile.writeByte(type);
 
             logFile.writeInt(8); // ID값 길이
-            logFile.writeLong(product.getId()); // ID값
+            logFile.writeLong(order.getId()); // ID값
 
-            byte[] nameBytes = product.getName().getBytes();
-            logFile.writeInt(nameBytes.length); // name값 길이
-            logFile.write(nameBytes); // name값
+            logFile.writeInt(8); // product id값 길이
+            logFile.writeLong(order.getProductId()); // product id값
 
-            logFile.writeInt(4); // price값 길이
-            logFile.writeInt(product.getPrice()); // price 값
-
-            logFile.writeInt(4); // stock값 길이
-            logFile.writeInt(product.getStock()); // stock 값
+            logFile.writeInt(4); // count값 길이
+            logFile.writeInt(order.getCount()); // count값
         }
         catch (IOException e)
         {
@@ -124,22 +120,17 @@ public class TransactionManager
                 int idLength = logReader.readInt(); // id값 길이
                 long id = logReader.readLong(); // id값
 
-                int nameLength = logReader.readInt(); // name값 길이
-                byte[] nameBytes = new byte[nameLength];
-                logReader.readFully(nameBytes); // name값
-                String name = new String(nameBytes);
+                int productIdLength = logReader.readInt(); // product id값 길이
+                long productId = logReader.readLong(); // product id값
 
-                int priceLength = logReader.readInt(); // price값 길이
-                int price = logReader.readInt(); // price값
-
-                int stockLength = logReader.readInt(); // stock값 길이
-                int stock = logReader.readInt(); // stock값
+                int countLength = logReader.readInt(); // count값 길이
+                int count = logReader.readInt(); // count값
 
                 switch (type)
                 {
                     case 'I': rollbackInsert(id); break;
-                    case 'U': rollbackUpdate(new Product(id, name, price, stock)); break;
-                    case 'D': rollbackDelete(new Product(id, name, price, stock)); break;
+                    case 'U': rollbackUpdate(new Order(id, productId, count)); break;
+                    case 'D': rollbackDelete(new Order(id, productId, count)); break;
                 }
             }
         }
@@ -157,13 +148,13 @@ public class TransactionManager
         repository.delete(id, false);
     }
 
-    private void rollbackUpdate(Product product) throws Exception
+    private void rollbackUpdate(Order order) throws Exception
     {
-        repository.merge(product, false);
+        repository.merge(order, false);
     }
 
-    private void rollbackDelete(Product product) throws Exception
+    private void rollbackDelete(Order order) throws Exception
     {
-        repository.persist(product, false);
+        repository.persist(order, false);
     }
 }

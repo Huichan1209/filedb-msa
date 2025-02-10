@@ -1,5 +1,6 @@
 package com.example.product.controller;
 
+import com.example.product.db.paging.Page;
 import com.example.product.db.paging.PageRequest;
 import com.example.product.db.paging.Pageable;
 import com.example.product.db.paging.Sort;
@@ -35,7 +36,7 @@ public class ProductController
     }
 
     @GetMapping("/list")
-    public List<ProductResDto> getAllProducts(@RequestParam(required = false) Integer page,
+    public Page<ProductResDto> getAllProducts(@RequestParam(required = false) Integer page,
                                               @RequestParam(required = false) Integer size,
                                               @RequestParam(required = false) String sortBy,
                                               @RequestParam(required = false) String direction) throws Exception

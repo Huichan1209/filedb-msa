@@ -12,5 +12,6 @@ public class ProductResDto
     private Long id;
     private String name;
     private int price;
+    private int stock;
     private boolean success = false;
 }

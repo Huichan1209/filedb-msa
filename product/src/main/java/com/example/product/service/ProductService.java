@@ -27,48 +27,49 @@ public class ProductService
 
     public ProductResDto addProduct (ProductReqDto reqDto) throws Exception
     {
-        Product product = new Product(null, reqDto.getName(), reqDto.getPrice());
+        Product product = new Product(null, reqDto.getName(), reqDto.getPrice(), reqDto.getStock());
         repository.save(product);
-        return new ProductResDto(product.getId(), product.getName(), product.getPrice(), true);
+        return new ProductResDto(product.getId(), product.getName(), product.getPrice(), product.getStock(), true);
     }
 
     public ProductResDto updateProduct(ProductReqDto reqDto) throws Exception
     {
-        Product product = new Product(reqDto.getId(), reqDto.getName(), reqDto.getPrice());
+        Product product = new Product(reqDto.getId(), reqDto.getName(), reqDto.getPrice(), reqDto.getStock());
         if(!repository.findById(reqDto.getId()).isPresent())
         {
-            System.out.println("[Service.update] 해당 데이터가 존재하지 않음.");
-            return new ProductResDto(reqDto.getId(), reqDto.getName(), reqDto.getPrice(), false);
+            System.out.println("[Service.update] 해당 데이터가 존재하지 않음. id:" + reqDto.getId());
+            return new ProductResDto(reqDto.getId(), reqDto.getName(), reqDto.getPrice(), reqDto.getStock(), false);
         }
 
         Product resultProduct = repository.save(product);
-        return new ProductResDto(resultProduct.getId(), resultProduct.getName(), resultProduct.getPrice(), true);
+        return new ProductResDto(resultProduct.getId(), resultProduct.getName(), resultProduct.getPrice(), resultProduct.getStock(), true);
     }
 
     public ProductResDto deleteProduct(Long id) throws Exception
     {
         if(!repository.findById(id).isPresent())
         {
-            System.out.println("[Service.delete] 해당 데이터가 존재하지 않음.");
-            return new ProductResDto(id, "", 0, false);
+            System.out.println("[Service.delete] 해당 데이터가 존재하지 않음. id:" + id);
+            return new ProductResDto(id, "", 0, 0, false);
         }
 
         repository.delete(id);
-        return new ProductResDto(id, "", 0, true);
+        return new ProductResDto(id, "", 0, 0, true);
     }
 
     public ProductResDto getProductById(Long id) throws IOException
     {
         Optional<Product> findProduct = repository.findById(id);
-        return findProduct.map(p -> new ProductResDto(p.getId(), p.getName(), p.getPrice(), true))
-                .orElse(new ProductResDto(id, "", 0, false));
+        return findProduct.map(p -> new ProductResDto(p.getId(), p.getName(), p.getPrice(), p.getStock(), true))
+                .orElse(new ProductResDto(id, "", 0, 0, false));
     }
 
-    public List<ProductResDto> getAllProducts(Pageable pageable) throws IOException
+    public Page<ProductResDto> getAllProducts(Pageable pageable) throws IOException
     {
-        Page<Product> productPage = repository.findAll(pageable);
-        return productPage.getContent().stream()
-                .map(p -> new ProductResDto(p.getId(), p.getName(), p.getPrice(), true))
+        List<ProductResDto> contents = repository.findAll(pageable).stream()
+                .map(p -> new ProductResDto(p.getId(), p.getName(), p.getPrice(), p.getStock(), true))
                 .collect(Collectors.toList());
+
+        return new Page<ProductResDto>(contents, pageable.getPageNumber(), pageable.getPageSize(), repository.getTotalElements(), pageable.getSort());
     }
 }

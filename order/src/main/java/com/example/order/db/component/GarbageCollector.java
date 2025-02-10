@@ -1,4 +1,4 @@
-package com.example.product.db.component;
+package com.example.order.db.component;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -63,29 +63,23 @@ public class GarbageCollector
 
                 int fieldCount = oldDatFile.readInt();
 
-                int idLength = oldDatFile.readInt();
+                int orderIdLength = oldDatFile.readInt();
+                long orderId = oldDatFile.readLong();
+
+                int productIdLength = oldDatFile.readInt();
                 long productId = oldDatFile.readLong();
 
-                int nameLength = oldDatFile.readInt();
-                byte[] nameBytes = new byte[nameLength];
-                oldDatFile.readFully(nameBytes);
-
-                int priceLength = oldDatFile.readInt();
-                int price = oldDatFile.readInt();
-
-                int stockLength = oldDatFile.readInt();
-                int stock = oldDatFile.readInt();
+                int countLength = oldDatFile.readInt();
+                long count = oldDatFile.readInt();
 
                 newDatFile.seek(newPosition);
                 newDatFile.writeInt(fieldCount);
-                newDatFile.writeInt(idLength);
+                newDatFile.writeInt(orderIdLength);
+                newDatFile.writeLong(orderId);
+                newDatFile.writeInt(productIdLength);
                 newDatFile.writeLong(productId);
-                newDatFile.writeInt(nameLength);
-                newDatFile.write(nameBytes);
-                newDatFile.writeInt(priceLength);
-                newDatFile.writeInt(price);
-                newDatFile.writeInt(stockLength);
-                newDatFile.writeInt(stock);
+                newDatFile.writeInt(countLength);
+                newDatFile.writeLong(count);
             }
 
             try (RandomAccessFile newIdxFile = new RandomAccessFile(TMP_IDX_PATH, "rw"))

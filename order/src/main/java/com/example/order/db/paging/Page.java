@@ -1,4 +1,4 @@
-package com.example.product.db.paging;
+package com.example.order.db.paging;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

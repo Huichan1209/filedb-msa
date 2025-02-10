@@ -1,4 +1,4 @@
-package com.example.product.db.constant;
+package com.example.order.db.constant;
 
 public enum TransactionStatus
 {

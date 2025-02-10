@@ -14,6 +14,7 @@
         <input type="hidden" id="productId">
         <input type="text" id="productName" placeholder="상품명" class="border p-2 mr-2 rounded">
         <input type="number" id="productPrice" placeholder="가격" class="border p-2 mr-2 rounded">
+        <input type="number" id="productStock" placeholder="재고" class="border p-2 mr-2 rounded">
         <button id="submitBtn" class="bg-green-500 text-white p-2 rounded">추가</button>
     </div>
 
@@ -24,6 +25,7 @@
             <option value="id">ID</option>
             <option value="name">상품명</option>
             <option value="price">가격</option>
+            <option value="stock">재고</option>
         </select>
 
         <label for="direction" class="mr-2">정렬 방향:</label>
@@ -33,7 +35,7 @@
         </select>
 
         <label for="pageSize" class="mr-2">페이지 크기:</label>
-        <input type="number" id="pageSize" value="10" class="border p-2 w-20 rounded">
+        <input type="number" id="pageSize" value="20" class="border p-2 w-20 rounded">
 
         <button onclick="fetchProducts()" class="bg-blue-500 text-white p-2 rounded ml-4">조회</button>
     </div>
@@ -55,6 +57,7 @@
 <script>
     const API_BASE_URL = '/product';
     let currentPage = 0;
+    let totalPages = 1;
 
     // 페이지 로드 시 상품 목록 가져오기
     document.addEventListener('DOMContentLoaded', fetchProducts);
@@ -64,48 +67,61 @@
         const id = document.getElementById('productId').value;
         const name = document.getElementById('productName').value;
         const price = document.getElementById('productPrice').value;
+        const stock = document.getElementById('productStock').value;
 
         if (id) {
-            updateProduct(id, { name, price });
+            updateProduct(id, { name, price, stock });
         } else {
-            addProduct({ name, price });
+            addProduct({ name, price, stock });
         }
     });
 
-    // 상품 목록 가져오기 (페이징, 정렬 적용)
-    function fetchProducts() {
+    function fetchProducts()
+    {
         const sortBy = document.getElementById('sortBy').value;
         const direction = document.getElementById('direction').value;
         const size = document.getElementById('pageSize').value;
 
         fetch(`${API_BASE_URL}/list?page=${currentPage}&size=${size}&sortBy=${sortBy}&direction=${direction}`)
             .then(response => response.json())
-            .then(data => {
+            .then(data =>
+            {
                 const productList = document.getElementById('productList');
                 productList.innerHTML = '';
-                data.forEach(product => {
+
+                data.content.forEach(product => {
                     const listItem = document.createElement('li');
                     listItem.className = 'flex justify-between items-center py-2 border-b last:border-b-0';
                     listItem.innerHTML = `
-                        <span>${product.name} - ${product.price}원</span>
+                        <span>ID: ${product.id} | ${product.name} - ${product.price}원 - 재고: ${product.stock}</span>
                         <div>
-                            <button onclick="selectProduct(${product.id}, '${product.name}', ${product.price})" class="bg-yellow-400 text-white p-2 rounded mr-2">수정</button>
-                            <button onclick="deleteProduct(${product.id})" class="bg-red-500 text-white p-2 rounded">삭제</button>
+                            <button onclick=\"selectProduct(${product.id}, '${product.name}', ${product.price}, ${product.stock})\" class=\"bg-yellow-400 text-white p-2 rounded mr-2\">수정</button>
+                            <button onclick=\"deleteProduct(${product.id})\" class=\"bg-red-500 text-white p-2 rounded\">삭제</button>
                         </div>
                     `;
                     productList.appendChild(listItem);
                 });
 
+                // 서버 응답의 페이지 번호로 currentPage 동기화
+                currentPage = data.pageNumber;
+                totalPages = data.totalPages;
+
                 document.getElementById('currentPage').innerText = currentPage + 1;
+
+                // 이전/다음 버튼 상태 업데이트
+                document.getElementById('prevPage').disabled = data.first;
+                document.getElementById('nextPage').disabled = data.last;
             })
             .catch(error => console.error('상품 목록 조회 실패:', error));
     }
 
+
     // 페이지 변경 (이전/다음)
     function changePage(offset) {
-        currentPage += offset;
-        if (currentPage < 0) currentPage = 0;
-        fetchProducts();
+        if (currentPage + offset >= 0 && currentPage + offset < totalPages) {
+            currentPage += offset;
+            fetchProducts();
+        }
     }
 
     // 상품 추가
@@ -155,10 +171,11 @@
     }
 
     // 수정할 상품 선택 시 폼에 데이터 채우기
-    function selectProduct(id, name, price) {
+    function selectProduct(id, name, price, stock) {
         document.getElementById('productId').value = id;
         document.getElementById('productName').value = name;
         document.getElementById('productPrice').value = price;
+        document.getElementById('productStock').value = stock;
         document.getElementById('submitBtn').textContent = '수정';
     }
 
@@ -167,6 +184,7 @@
         document.getElementById('productId').value = '';
         document.getElementById('productName').value = '';
         document.getElementById('productPrice').value = '';
+        document.getElementById('productStock').value = '';
         document.getElementById('submitBtn').textContent = '추가';
     }
 </script>

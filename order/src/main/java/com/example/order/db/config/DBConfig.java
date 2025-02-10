@@ -1,6 +1,5 @@
-package com.example.product.config;
+package com.example.order.db.config;
 
-import com.example.product.db.component.IdGenerator;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 

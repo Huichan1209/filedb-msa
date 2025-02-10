@@ -1,4 +1,4 @@
-package com.example.product.dto.req;
+package com.example.order.dto.res;
 
 import lombok.*;
 
@@ -7,10 +7,11 @@ import lombok.*;
 @Getter
 @Setter
 @ToString // AOP로 간단하게 매개변수 내용 toString해서 로그 찍을 용도
-public class ProductReqDto
+public class OrderResDto
 {
     private Long id;
-    private String name;
-    private int price;
-    private int stock;
+    private Long productId;
+    private int count;
+    private boolean success;
 }
+
