@@ -1,10 +1,12 @@
 package com.example.product.db.paging;
 
 import lombok.Getter;
+import lombok.ToString;
 
 import java.util.List;
 
 @Getter
+@ToString
 public class Page<T>
 {
     private final List<T> content;

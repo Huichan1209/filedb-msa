@@ -1,8 +1,10 @@
 package com.example.product.db.paging;
 
 import lombok.Getter;
+import lombok.ToString;
 
 @Getter
+@ToString
 public class Pageable
 {
     private final int pageNumber;     // 페이지 번호

@@ -1,6 +1,8 @@
 package com.example.product.controller;
 
+import com.example.product.db.paging.PageRequest;
 import com.example.product.db.paging.Pageable;
+import com.example.product.db.paging.Sort;
 import com.example.product.dto.req.ProductReqDto;
 import com.example.product.dto.res.ProductResDto;
 import com.example.product.service.ProductService;
@@ -32,9 +34,18 @@ public class ProductController
         return service.getProductById(id);
     }
 
-    @GetMapping
-    public List<ProductResDto> getAllProducts(Pageable pageable) throws Exception
+    @GetMapping("/list")
+    public List<ProductResDto> getAllProducts(@RequestParam(required = false) Integer page,
+                                              @RequestParam(required = false) Integer size,
+                                              @RequestParam(required = false) String sortBy,
+                                              @RequestParam(required = false) String direction) throws Exception
     {
+        page = (page != null) ? page : 0;
+        size = (size != null) ? size : 10;
+        sortBy = (sortBy != null) ? sortBy : "id";
+        direction = (direction != null) ? direction : "ASC";
+
+        Pageable pageable = PageRequest.of(page, size, new Sort(sortBy, Sort.Direction.fromString(direction)));
         return service.getAllProducts(pageable);
     }
 

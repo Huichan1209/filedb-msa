@@ -1,8 +1,10 @@
 package com.example.product.db.paging;
 
 import lombok.Getter;
+import lombok.ToString;
 
 @Getter
+@ToString
 public class PageRequest
 {
     private final int pageNumber;
@@ -19,14 +21,14 @@ public class PageRequest
         this.sort = (sort != null) ? sort : Sort.unsorted();
     }
 
-    public static PageRequest of(int pageNumber, int pageSize)
+    public static Pageable of(int pageNumber, int pageSize)
     {
-        return new PageRequest(pageNumber, pageSize, Sort.unsorted());
+        return new Pageable(pageNumber, pageSize, Sort.unsorted());
     }
 
-    public static PageRequest of(int pageNumber, int pageSize, Sort sort)
+    public static Pageable of(int pageNumber, int pageSize, Sort sort)
     {
-        return new PageRequest(pageNumber, pageSize, sort);
+        return new Pageable(pageNumber, pageSize, sort);
     }
 
     public long getOffset() {

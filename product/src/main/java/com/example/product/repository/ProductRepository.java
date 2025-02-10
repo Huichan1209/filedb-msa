@@ -293,9 +293,6 @@ public class ProductRepository // 여기는 CRUD만 구현하고 Transaction과 
         try (RandomAccessFile datFile = new RandomAccessFile(DAT_PATH, "r");
              RandomAccessFile idxFile = new RandomAccessFile(IDX_PATH, "r"))
         {
-            datFile.getChannel().lock();
-            idxFile.getChannel().lock();
-
             // idx 파일을 돌면서 데이터의 위치를 구한다.
             long position = -1; // .dat 파일에서 찾으려는 데이터의 위치값
             long idxFileLength = idxFile.length();
@@ -442,8 +439,9 @@ public class ProductRepository // 여기는 CRUD만 구현하고 Transaction과 
 
             // 페이징 처리
             int page = pageable.getPageNumber();
+            if (page < 1) { page = 1; }
             int size = pageable.getPageSize();
-            int startIndex = (page - 1) * size;
+            int startIndex = Math.min(0, ((page - 1) * size));
             if (startIndex >= indexList.size())
             {
                 // 최대 페이지 초과시 빈페이지 반환

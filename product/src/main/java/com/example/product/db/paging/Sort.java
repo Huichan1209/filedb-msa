@@ -1,9 +1,12 @@
 package com.example.product.db.paging;
 
+import lombok.ToString;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+@ToString
 public class Sort
 {
     private final String property;

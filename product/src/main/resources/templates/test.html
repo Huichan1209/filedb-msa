@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>상품 관리</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+</head>
+<body class="bg-gray-100 p-8">
+<div class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md">
+    <h1 class="text-3xl font-bold mb-4">상품 관리</h1>
+
+    <!-- 상품 추가/수정 폼 -->
+    <div class="mb-6">
+        <input type="hidden" id="productId">
+        <input type="text" id="productName" placeholder="상품명" class="border p-2 mr-2 rounded">
+        <input type="number" id="productPrice" placeholder="가격" class="border p-2 mr-2 rounded">
+        <button id="submitBtn" class="bg-green-500 text-white p-2 rounded">추가</button>
+    </div>
+
+    <!-- 정렬 및 페이징 옵션 -->
+    <div class="mb-6 flex items-center">
+        <label for="sortBy" class="mr-2">정렬 기준:</label>
+        <select id="sortBy" class="border p-2 mr-4 rounded">
+            <option value="id">ID</option>
+            <option value="name">상품명</option>
+            <option value="price">가격</option>
+        </select>
+
+        <label for="direction" class="mr-2">정렬 방향:</label>
+        <select id="direction" class="border p-2 mr-4 rounded">
+            <option value="ASC">오름차순</option>
+            <option value="DESC">내림차순</option>
+        </select>
+
+        <label for="pageSize" class="mr-2">페이지 크기:</label>
+        <input type="number" id="pageSize" value="10" class="border p-2 w-20 rounded">
+
+        <button onclick="fetchProducts()" class="bg-blue-500 text-white p-2 rounded ml-4">조회</button>
+    </div>
+
+    <!-- 상품 목록 -->
+    <h2 class="text-2xl font-semibold mb-3">상품 목록</h2>
+    <ul id="productList" class="border rounded p-4">
+        <!-- 상품 항목이 여기에 추가됩니다 -->
+    </ul>
+
+    <!-- 페이지네이션 -->
+    <div class="flex justify-between items-center mt-4">
+        <button id="prevPage" onclick="changePage(-1)" class="bg-gray-300 text-black p-2 rounded">이전</button>
+        <span id="currentPage" class="text-lg">1</span>
+        <button id="nextPage" onclick="changePage(1)" class="bg-gray-300 text-black p-2 rounded">다음</button>
+    </div>
+</div>
+
+<script>
+    const API_BASE_URL = '/product';
+    let currentPage = 0;
+
+    // 페이지 로드 시 상품 목록 가져오기
+    document.addEventListener('DOMContentLoaded', fetchProducts);
+
+    // 상품 추가 또는 수정
+    document.getElementById('submitBtn').addEventListener('click', () => {
+        const id = document.getElementById('productId').value;
+        const name = document.getElementById('productName').value;
+        const price = document.getElementById('productPrice').value;
+
+        if (id) {
+            updateProduct(id, { name, price });
+        } else {
+            addProduct({ name, price });
+        }
+    });
+
+    // 상품 목록 가져오기 (페이징, 정렬 적용)
+    function fetchProducts() {
+        const sortBy = document.getElementById('sortBy').value;
+        const direction = document.getElementById('direction').value;
+        const size = document.getElementById('pageSize').value;
+
+        fetch(`${API_BASE_URL}/list?page=${currentPage}&size=${size}&sortBy=${sortBy}&direction=${direction}`)
+            .then(response => response.json())
+            .then(data => {
+                const productList = document.getElementById('productList');
+                productList.innerHTML = '';
+                data.forEach(product => {
+                    const listItem = document.createElement('li');
+                    listItem.className = 'flex justify-between items-center py-2 border-b last:border-b-0';
+                    listItem.innerHTML = `
+                        <span>${product.name} - ${product.price}원</span>
+                        <div>
+                            <button onclick="selectProduct(${product.id}, '${product.name}', ${product.price})" class="bg-yellow-400 text-white p-2 rounded mr-2">수정</button>
+                            <button onclick="deleteProduct(${product.id})" class="bg-red-500 text-white p-2 rounded">삭제</button>
+                        </div>
+                    `;
+                    productList.appendChild(listItem);
+                });
+
+                document.getElementById('currentPage').innerText = currentPage + 1;
+            })
+            .catch(error => console.error('상품 목록 조회 실패:', error));
+    }
+
+    // 페이지 변경 (이전/다음)
+    function changePage(offset) {
+        currentPage += offset;
+        if (currentPage < 0) currentPage = 0;
+        fetchProducts();
+    }
+
+    // 상품 추가
+    function addProduct(product) {
+        fetch(API_BASE_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(product)
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('상품 추가 실패');
+            clearForm();
+            fetchProducts();
+        })
+        .catch(error => console.error(error));
+    }
+
+    // 상품 수정
+    function updateProduct(id, product) {
+        fetch(`${API_BASE_URL}/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(product)
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('상품 수정 실패');
+            clearForm();
+            fetchProducts();
+        })
+        .catch(error => console.error(error));
+    }
+
+    // 상품 삭제
+    function deleteProduct(id) {
+        fetch(`${API_BASE_URL}/${id}`, {
+            method: 'DELETE'
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('상품 삭제 실패');
+            fetchProducts();
+        })
+        .catch(error => console.error(error));
+    }
+
+    // 수정할 상품 선택 시 폼에 데이터 채우기
+    function selectProduct(id, name, price) {
+        document.getElementById('productId').value = id;
+        document.getElementById('productName').value = name;
+        document.getElementById('productPrice').value = price;
+        document.getElementById('submitBtn').textContent = '수정';
+    }
+
+    // 폼 초기화
+    function clearForm() {
+        document.getElementById('productId').value = '';
+        document.getElementById('productName').value = '';
+        document.getElementById('productPrice').value = '';
+        document.getElementById('submitBtn').textContent = '추가';
+    }
+</script>
+</body>
+</html>
