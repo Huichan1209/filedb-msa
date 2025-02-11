@@ -4,6 +4,8 @@ import com.example.order.domain.Order;
 import com.example.order.domain.OrderStatus;
 import com.example.order.kafka.event.StockDecreasedEvent;
 import com.example.order.repository.OrderRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
@@ -15,26 +17,48 @@ import java.util.Optional;
 public class OrderEventListener
 {
     private final OrderRepository repository;
+    private final ObjectMapper objectMapper;
 
     @Autowired
-    public OrderEventListener(OrderRepository repository)
+    public OrderEventListener(OrderRepository repository, ObjectMapper objectMapper)
     {
         this.repository = repository;
+        this.objectMapper = objectMapper;
     }
 
     @KafkaListener(topics = "stock-decreased", groupId = "order-service")
-    public void handleStockDecreased(StockDecreasedEvent event)
+    public void handleStockDecreased(String msg)
     {
-        System.out.println("stock-decreased 이벤트 수신" + event);
+        StockDecreasedEvent event = null;
+        try
+        {
+            event = objectMapper.readValue(msg, StockDecreasedEvent.class);
+            System.out.println("stock-decreased 이벤트 수신" + event);
+        }
+        catch (JsonProcessingException e)
+        {
+            System.out.println("event 메시지 파싱 중 에러");
+            e.printStackTrace();
+        }
 
         // 주문 상태를 COMPLETE(채결)로 변경
         updateOrderStatus(event.getOrderId(), OrderStatus.COMPLETED);
     }
 
     @KafkaListener(topics = "stock-decrease-failed", groupId = "order-service")
-    public void handleStockDecreaseFailed(StockDecreasedEvent event)
+    public void handleStockDecreaseFailed(String msg)
     {
-        System.out.println("stock-decrease-failed 이벤트 수신" + event);
+        StockDecreasedEvent event = null;
+        try
+        {
+            event = objectMapper.readValue(msg, StockDecreasedEvent.class);
+            System.out.println("stock-decrease-failed 이벤트 수신" + event);
+        }
+        catch (JsonProcessingException e)
+        {
+            System.out.println("event 메시지 파싱 중 에러");
+            e.printStackTrace();
+        }
 
         // 주문 상태를 FAILED(실패)로 변경
         updateOrderStatus(event.getOrderId(), OrderStatus.FAILED);

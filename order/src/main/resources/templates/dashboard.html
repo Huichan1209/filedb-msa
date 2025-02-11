@@ -66,7 +66,7 @@
             .then(data => {
                 const ordersTableBody = document.getElementById('ordersTableBody');
                 ordersTableBody.innerHTML = '';
-                data.contents.forEach(order => {
+                data.content.forEach(order => {
                     const row = `
                         <tr>
                             <td>${order.id}</td>

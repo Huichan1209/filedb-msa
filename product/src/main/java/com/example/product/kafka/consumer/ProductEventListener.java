@@ -5,27 +5,43 @@ import com.example.product.kafka.event.OrderCreatedEvent;
 import com.example.product.kafka.event.StockDecreasedEvent;
 import com.example.product.kafka.producer.ProductEventProducer;
 import com.example.product.repository.ProductRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
+
+import java.io.IOException;
 
 @Component
 public class ProductEventListener
 {
     private final ProductRepository repository;
     private final ProductEventProducer producer;
+    private final ObjectMapper objectMapper;
 
     @Autowired
-    public ProductEventListener(ProductRepository repository, ProductEventProducer producer)
+    public ProductEventListener(ProductRepository repository, ProductEventProducer producer, ObjectMapper objectMapper)
     {
         this.repository = repository;
         this.producer = producer;
+        this.objectMapper = objectMapper;
     }
 
     @KafkaListener(topics = "order-created", groupId = "product-service")
-    public void handleOrderCreated(OrderCreatedEvent event)
+    public void handleOrderCreated(String msg)
     {
-        System.out.println("order-created 이벤트 수신. event: " + event.toString());
+        OrderCreatedEvent event = null;
+        try
+        {
+            event = objectMapper.readValue(msg, OrderCreatedEvent.class);
+            System.out.println("order-created 이벤트 수신. event: " + event);
+        }
+        catch (JsonProcessingException e)
+        {
+            System.out.println("event 메시지 파싱 중 에러");
+            e.printStackTrace();
+        }
 
         try
         {
