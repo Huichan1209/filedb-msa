@@ -6,6 +6,7 @@ import com.example.order.domain.Order;
 import com.example.order.domain.OrderStatus;
 import com.example.order.dto.req.OrderReqDto;
 import com.example.order.dto.res.OrderResDto;
+import com.example.order.kafka.event.OrderCancelledEvent;
 import com.example.order.kafka.event.OrderCreatedEvent;
 import com.example.order.kafka.producer.OrderEventProducer;
 import com.example.order.repository.OrderRepository;
@@ -58,14 +59,34 @@ public class OrderService
 
     public OrderResDto deleteOrder(Long id) throws Exception
     {
-        if(!repository.findById(id).isPresent())
+        Optional<Order> findOrder = repository.findById(id);
+        if(findOrder.isPresent())
         {
-            System.out.println("[Service.delete] 해당 데이터가 존재하지 않음. id:" + id);
-            return new OrderResDto(id, null, 0, OrderStatus.PENDING, false);
+            Order order = findOrder.get();
+            if(order.getStatus() == OrderStatus.COMPLETED)
+            {
+                // Kafka로 order-cancelled 이벤트 발행 (Product의 ProductEventListener에서 수신)
+                OrderCancelledEvent event = new OrderCancelledEvent(id, order.getProductId(), order.getCount());
+                eventProducer.sendOrderCancelledEvent(event);
+
+                // 일단 동기 루틴은 success true로 리턴하고 끝낸다.
+                return new OrderResDto(id, null, 0, order.getStatus(), true);
+            }
+            else if(order.getStatus() == OrderStatus.FAILED)
+            {
+                // 재고 차감이 실패된 주문은 Product와 통신할 필요 없이 바로 DB에서 삭제한다.
+                repository.delete(id);
+                return new OrderResDto(id, null, 0, order.getStatus(), true);
+            }
+            else if(order.getStatus() == OrderStatus.PENDING) // 그냥 else로 해도 되지만 가독성을 위해 else if로 명확히 표시했다.
+            {
+                // 보류 상태는 아직 재고 차감 로직이 진행중일 수 있으니 지금과 같은 구조에서는 주문 취소를 허용하지 않는다.
+                return new OrderResDto(id, null, 0, order.getStatus(), false);
+            }
         }
 
-        repository.delete(id);
-        return new OrderResDto(id, null, 0, OrderStatus.PENDING, true);
+        System.out.println("[Service.delete] 해당 데이터가 존재하지 않음. id:" + id);
+        return new OrderResDto(id, null, 0, OrderStatus.PENDING, false);
     }
 
     public OrderResDto getOrderById(Long id) throws IOException

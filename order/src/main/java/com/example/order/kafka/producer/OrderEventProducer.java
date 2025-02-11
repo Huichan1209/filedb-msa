@@ -1,5 +1,6 @@
 package com.example.order.kafka.producer;
 
+import com.example.order.kafka.event.OrderCancelledEvent;
 import com.example.order.kafka.event.OrderCreatedEvent;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,6 +26,18 @@ public class OrderEventProducer
         try
         {
             kafkaTemplate.send("order-created", event.getProductId().toString(), objectMapper.writeValueAsString(event));
+        }
+        catch (JsonProcessingException e)
+        {
+            e.printStackTrace();
+        }
+    }
+
+    public void sendOrderCancelledEvent(OrderCancelledEvent event)
+    {
+        try
+        {
+            kafkaTemplate.send("order-cancelled", event.getProductId().toString(), objectMapper.writeValueAsString(event));
         }
         catch (JsonProcessingException e)
         {

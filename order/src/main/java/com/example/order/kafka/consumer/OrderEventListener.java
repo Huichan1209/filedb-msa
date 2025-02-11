@@ -3,6 +3,8 @@ package com.example.order.kafka.consumer;
 import com.example.order.domain.Order;
 import com.example.order.domain.OrderStatus;
 import com.example.order.kafka.event.StockDecreasedEvent;
+import com.example.order.kafka.event.StockRestoreFailedEvent;
+import com.example.order.kafka.event.StockRestoredEvent;
 import com.example.order.repository.OrderRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -62,6 +64,46 @@ public class OrderEventListener
 
         // 주문 상태를 FAILED(실패)로 변경
         updateOrderStatus(event.getOrderId(), OrderStatus.FAILED);
+    }
+
+    @KafkaListener(topics = "stock-restored", groupId = "order-service")
+    public void handleStockRestored(String msg)
+    {
+        StockRestoredEvent event = null;
+        try
+        {
+            event = objectMapper.readValue(msg, StockRestoredEvent.class);
+            System.out.println("stock-restored 이벤트 수신" + event);
+            repository.delete(event.getOrderId());
+        }
+        catch (JsonProcessingException e)
+        {
+            System.out.println("event 메시지 파싱 중 에러");
+            e.printStackTrace();
+        }
+        catch (Exception e)
+        {
+            System.out.println("stock-restored 이벤트 처리 중 delete 에러");
+            e.printStackTrace();
+        }
+    }
+
+    @KafkaListener(topics = "stock-restored-failed", groupId = "order-service")
+    public void handleStockRestoreFailed(String msg)
+    {
+        StockRestoreFailedEvent event = null;
+        try
+        {
+            event = objectMapper.readValue(msg, StockRestoreFailedEvent.class);
+            System.out.println("stock-restore-failed 이벤트 수신" + event);
+            
+            //TODO 지금은 취소 실패시 딱히 할게 없으나 추후에 요구사항이 생기면 여기에 구현
+        }
+        catch (JsonProcessingException e)
+        {
+            System.out.println("event 메시지 파싱 중 에러");
+            e.printStackTrace();
+        }
     }
 
     // 주문 상태 변경

@@ -1,6 +1,8 @@
 package com.example.product.kafka.producer;
 
 import com.example.product.kafka.event.StockDecreasedEvent;
+import com.example.product.kafka.event.StockRestoreFailedEvent;
+import com.example.product.kafka.event.StockRestoredEvent;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,11 +34,35 @@ public class ProductEventProducer
         }
     }
 
-    public void sendStockDecreaseFailed(StockDecreasedEvent event)
+    public void sendStockDecreaseFailedEvent (StockDecreasedEvent event)
     {
         try
         {
             kafkaTemplate.send("stock-decrease-failed", event.getOrderId().toString(), objectMapper.writeValueAsString(event));
+        }
+        catch (JsonProcessingException e)
+        {
+            e.printStackTrace();
+        }
+    }
+
+    public void sendStockRestoredEvent (StockRestoredEvent event)
+    {
+        try
+        {
+            kafkaTemplate.send("stock-restored", event.getOrderId().toString(), objectMapper.writeValueAsString(event));
+        }
+        catch (JsonProcessingException e)
+        {
+            e.printStackTrace();
+        }
+    }
+
+    public void sendStockRestoreFailedEvent (StockRestoreFailedEvent event)
+    {
+        try
+        {
+            kafkaTemplate.send("stock-restore-failed", event.getOrderId().toString(), objectMapper.writeValueAsString(event));
         }
         catch (JsonProcessingException e)
         {
