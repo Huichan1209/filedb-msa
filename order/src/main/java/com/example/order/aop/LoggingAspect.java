@@ -1,4 +1,4 @@
-package com.example.product.db.aop;
+package com.example.order.aop;
 
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -12,7 +12,7 @@ import java.util.Arrays;
 public class LoggingAspect
 {
     // Repository 패키지 내 모든 메서드 호출 시 적용. 중간에 도메인 이름은 비워서 라이브러리로 복붙 사용 가능하도록 함
-    @Around("execution(* com.example..repository.*.*(..))")
+    @Around("execution(* com.example..repository.*.*(..)) || execution(* com.example..kafka..*.*(..))")
     public Object logAroundRepositoryMethods(ProceedingJoinPoint joinPoint) throws Throwable
     {
         String methodName = joinPoint.getSignature().getName();  // 메서드 이름

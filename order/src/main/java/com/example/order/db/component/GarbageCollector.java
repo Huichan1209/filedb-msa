@@ -1,5 +1,6 @@
 package com.example.order.db.component;
 
+import com.example.order.domain.OrderStatus;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -72,6 +73,10 @@ public class GarbageCollector
                 int countLength = oldDatFile.readInt();
                 long count = oldDatFile.readInt();
 
+                int statusLength = oldDatFile.readInt();
+                byte[] statusByte = new byte[statusLength];
+                oldDatFile.readFully(statusByte);
+
                 newDatFile.seek(newPosition);
                 newDatFile.writeInt(fieldCount);
                 newDatFile.writeInt(orderIdLength);
@@ -80,6 +85,8 @@ public class GarbageCollector
                 newDatFile.writeLong(productId);
                 newDatFile.writeInt(countLength);
                 newDatFile.writeLong(count);
+                newDatFile.writeInt(statusLength);
+                newDatFile.write(statusByte);
             }
 
             try (RandomAccessFile newIdxFile = new RandomAccessFile(TMP_IDX_PATH, "rw"))

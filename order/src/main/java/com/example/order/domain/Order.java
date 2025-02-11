@@ -14,4 +14,6 @@ public class Order
     private Long productId;
 
     private int count;
+
+    private OrderStatus status = OrderStatus.PENDING;
 }

@@ -48,12 +48,13 @@ public class OrderController
         return service.getAllOrders(pageable);
     }
 
-    @PutMapping("/{id}")
-    public OrderResDto updateOrder(@PathVariable Long id, @RequestBody OrderReqDto dto) throws Exception
-    {
-        dto.setId(id);
-        return service.updateOrder(dto);
-    }
+    // 이미 채결된 주문을 수정하는 것은 논리적으로 조금 이상해서 취소 후 다시 주문하는 흐름으로 UI를 구성했다.
+//    @PutMapping("/{id}")
+//    public OrderResDto updateOrder(@PathVariable Long id, @RequestBody OrderReqDto dto) throws Exception
+//    {
+//        dto.setId(id);
+//        return service.updateOrder(dto);
+//    }
 
     @DeleteMapping("/{id}")
     public OrderResDto deleteOrder(@PathVariable Long id) throws Exception

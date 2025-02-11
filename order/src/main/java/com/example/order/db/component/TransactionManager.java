@@ -2,6 +2,7 @@ package com.example.order.db.component;
 
 import com.example.order.db.constant.TransactionStatus;
 import com.example.order.domain.Order;
+import com.example.order.domain.OrderStatus;
 import com.example.order.repository.OrderRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -93,6 +94,10 @@ public class TransactionManager
 
             logFile.writeInt(4); // count값 길이
             logFile.writeInt(order.getCount()); // count값
+
+            byte[] statusBytes = order.getStatus().name().getBytes();
+            logFile.writeInt(statusBytes.length); // status값 길이 (가변)
+            logFile.write(statusBytes); // status 값]=
         }
         catch (IOException e)
         {
@@ -126,11 +131,16 @@ public class TransactionManager
                 int countLength = logReader.readInt(); // count값 길이
                 int count = logReader.readInt(); // count값
 
+                int statusLength = logReader.readInt(); // status값 길이
+                byte[] statusByte = new byte[statusLength];
+                logReader.readFully(statusByte);
+                OrderStatus status = OrderStatus.fromString(new String(statusByte));
+
                 switch (type)
                 {
                     case 'I': rollbackInsert(id); break;
-                    case 'U': rollbackUpdate(new Order(id, productId, count)); break;
-                    case 'D': rollbackDelete(new Order(id, productId, count)); break;
+                    case 'U': rollbackUpdate(new Order(id, productId, count, status)); break;
+                    case 'D': rollbackDelete(new Order(id, productId, count, status)); break;
                 }
             }
         }

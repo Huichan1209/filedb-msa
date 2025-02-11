@@ -1,5 +1,6 @@
 package com.example.order.dto.res;
 
+import com.example.order.domain.OrderStatus;
 import lombok.*;
 
 @NoArgsConstructor
@@ -12,6 +13,7 @@ public class OrderResDto
     private Long id;
     private Long productId;
     private int count;
+    private OrderStatus status;
     private boolean success;
 }
 

@@ -1,183 +1,127 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>주문 관리</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-<body class="bg-gray-100 p-8">
-<div class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md">
-    <h1 class="text-3xl font-bold mb-4">주문 관리</h1>
+<body>
+<div class="container mt-5">
+    <h1 class="text-center mb-4">Order Dashboard</h1>
 
-    <!-- 주문 추가/수정 폼 -->
-    <div class="mb-6">
-        <input type="hidden" id="orderId">
-        <input type="number" id="productId" placeholder="상품 ID" class="border p-2 mr-2 rounded">
-        <input type="number" id="orderCount" placeholder="수량" class="border p-2 mr-2 rounded">
-        <button id="submitBtn" class="bg-green-500 text-white p-2 rounded">주문 추가</button>
+    <!-- Add Order Form -->
+    <div class="card mb-4">
+        <div class="card-header">Add New Order</div>
+        <div class="card-body">
+            <form id="orderForm">
+                <div class="mb-3">
+                    <label for="productId" class="form-label">Product ID</label>
+                    <input type="number" class="form-control" id="productId" required>
+                </div>
+                <div class="mb-3">
+                    <label for="count" class="form-label">Count</label>
+                    <input type="number" class="form-control" id="count" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Add Order</button>
+            </form>
+        </div>
     </div>
 
-    <!-- 정렬 및 페이징 옵션 -->
-    <div class="mb-6 flex items-center">
-        <label for="sortBy" class="mr-2">정렬 기준:</label>
-        <select id="sortBy" class="border p-2 mr-4 rounded">
-            <option value="id">ID</option>
-            <option value="productId">상품 ID</option>
-            <option value="count">수량</option>
-        </select>
-
-        <label for="direction" class="mr-2">정렬 방향:</label>
-        <select id="direction" class="border p-2 mr-4 rounded">
-            <option value="ASC">오름차순</option>
-            <option value="DESC">내림차순</option>
-        </select>
-
-        <label for="pageSize" class="mr-2">페이지 크기:</label>
-        <input type="number" id="pageSize" value="10" class="border p-2 w-20 rounded">
-
-        <button onclick="fetchOrders()" class="bg-blue-500 text-white p-2 rounded ml-4">조회</button>
-    </div>
-
-    <!-- 주문 목록 -->
-    <h2 class="text-2xl font-semibold mb-3">주문 목록</h2>
-    <ul id="orderList" class="border rounded p-4">
-        <!-- 주문 항목이 여기에 추가됩니다 -->
-    </ul>
-
-    <!-- 페이지네이션 -->
-    <div class="flex justify-between items-center mt-4">
-        <button id="prevPage" onclick="changePage(-1)" class="bg-gray-300 text-black p-2 rounded">이전</button>
-        <span id="currentPage" class="text-lg">1</span>
-        <button id="nextPage" onclick="changePage(1)" class="bg-gray-300 text-black p-2 rounded">다음</button>
+    <!-- Orders Table -->
+    <div class="card">
+        <div class="card-header">Orders List</div>
+        <div class="card-body">
+            <table class="table table-bordered">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Product ID</th>
+                    <th>Count</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+                </thead>
+                <tbody id="ordersTableBody">
+                <!-- Orders will be dynamically added here -->
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 
 <script>
-    const API_BASE_URL = '/order';
-    let currentPage = 0;
-    let totalPages = 1;
+    document.addEventListener('DOMContentLoaded', function () {
+        fetchOrders();
 
-    // 페이지 로드 시 주문 목록 가져오기
-    document.addEventListener('DOMContentLoaded', fetchOrders);
-
-    // 주문 추가 또는 수정
-    document.getElementById('submitBtn').addEventListener('click', () => {
-        const id = document.getElementById('orderId').value;
-        const productId = document.getElementById('productId').value;
-        const count = document.getElementById('orderCount').value;
-
-        if (id) {
-            updateOrder(id, { productId, count });
-        } else {
-            addOrder({ productId, count });
-        }
+        document.getElementById('orderForm').addEventListener('submit', function (event) {
+            event.preventDefault();
+            addOrder();
+        });
     });
 
-    // 주문 목록 가져오기 (페이징, 정렬 적용)
     function fetchOrders() {
-        const sortBy = document.getElementById('sortBy').value;
-        const direction = document.getElementById('direction').value;
-        const size = document.getElementById('pageSize').value;
-
-        fetch(`${API_BASE_URL}/list?page=${currentPage}&size=${size}&sortBy=${sortBy}&direction=${direction}`)
+        fetch('/order/list')
             .then(response => response.json())
             .then(data => {
-                const orderList = document.getElementById('orderList');
-                orderList.innerHTML = '';
-
-                data.content.forEach(order => {
-                    const listItem = document.createElement('li');
-                    listItem.className = 'flex justify-between items-center py-2 border-b last:border-b-0';
-                    listItem.innerHTML = `
-                        <span>ID: ${order.id} | 상품 ID: ${order.productId} - 수량: ${order.count}</span>
-                        <div>
-                            <button onclick="selectOrder(${order.id}, ${order.productId}, ${order.count})" class="bg-yellow-400 text-white p-2 rounded mr-2">수정</button>
-                            <button onclick="deleteOrder(${order.id})" class="bg-red-500 text-white p-2 rounded">삭제</button>
-                        </div>
+                const ordersTableBody = document.getElementById('ordersTableBody');
+                ordersTableBody.innerHTML = '';
+                data.contents.forEach(order => {
+                    const row = `
+                        <tr>
+                            <td>${order.id}</td>
+                            <td>${order.productId}</td>
+                            <td>${order.count}</td>
+                            <td>${order.status}</td>
+                            <td>
+                                <button class="btn btn-danger btn-sm" onclick="deleteOrder(${order.id})">Delete</button>
+                            </td>
+                        </tr>
                     `;
-                    orderList.appendChild(listItem);
+                    ordersTableBody.insertAdjacentHTML('beforeend', row);
                 });
-
-                // 페이지 정보 업데이트
-                currentPage = data.pageNumber;
-                totalPages = Math.ceil(data.totalElements / data.pageSize);
-                document.getElementById('currentPage').innerText = currentPage + 1;
-
-                // 이전/다음 버튼 상태 업데이트
-                document.getElementById('prevPage').disabled = data.first;
-                document.getElementById('nextPage').disabled = data.last;
-            })
-            .catch(error => console.error('주문 목록 조회 실패:', error));
+            });
     }
 
-    // 페이지 변경 (이전/다음)
-    function changePage(offset) {
-        if (currentPage + offset >= 0 && currentPage + offset < totalPages) {
-            currentPage += offset;
-            fetchOrders();
-        }
-    }
+    function addOrder() {
+        const productId = document.getElementById('productId').value;
+        const count = document.getElementById('count').value;
 
-    // 주문 추가
-    function addOrder(order) {
-        fetch(API_BASE_URL, {
+        fetch('/order', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(order)
+            body: JSON.stringify({
+                productId: productId,
+                count: count
+            })
         })
-        .then(response => {
-            if (!response.ok) throw new Error('주문 추가 실패');
-            clearForm();
-            fetchOrders();
-        })
-        .catch(error => console.error(error));
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Order added successfully!');
+                fetchOrders();
+                document.getElementById('orderForm').reset();
+            } else {
+                alert('Failed to add order.');
+            }
+        });
     }
 
-    // 주문 수정
-    function updateOrder(id, order) {
-        fetch(`${API_BASE_URL}/${id}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(order)
-        })
-        .then(response => {
-            if (!response.ok) throw new Error('주문 수정 실패');
-            clearForm();
-            fetchOrders();
-        })
-        .catch(error => console.error(error));
-    }
-
-    // 주문 삭제
-    function deleteOrder(id) {
-        fetch(`${API_BASE_URL}/${id}`, {
+    function deleteOrder(orderId) {
+        fetch(`/order/${orderId}`, {
             method: 'DELETE'
         })
-        .then(response => {
-            if (!response.ok) throw new Error('주문 삭제 실패');
-            fetchOrders();
-        })
-        .catch(error => console.error(error));
-    }
-
-    // 수정할 주문 선택 시 폼에 데이터 채우기
-    function selectOrder(id, productId, count) {
-        document.getElementById('orderId').value = id;
-        document.getElementById('productId').value = productId;
-        document.getElementById('orderCount').value = count;
-        document.getElementById('submitBtn').textContent = '주문 수정';
-    }
-
-    // 폼 초기화
-    function clearForm() {
-        document.getElementById('orderId').value = '';
-        document.getElementById('productId').value = '';
-        document.getElementById('orderCount').value = '';
-        document.getElementById('submitBtn').textContent = '주문 추가';
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Order deleted successfully!');
+                fetchOrders();
+            } else {
+                alert('Failed to delete order.');
+            }
+        });
     }
 </script>
 </body>

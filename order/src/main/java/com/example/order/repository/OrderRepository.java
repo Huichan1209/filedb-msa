@@ -5,6 +5,7 @@ import com.example.order.db.component.TransactionManager;
 import com.example.order.db.paging.Pageable;
 import com.example.order.db.paging.Sort;
 import com.example.order.domain.Order;
+import com.example.order.domain.OrderStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -88,7 +89,7 @@ public class OrderRepository
             long position = datFile.length();
             datFile.seek(position);
 
-            datFile.writeInt(3); // [필드 수]
+            datFile.writeInt(4); // [필드 수]
 
             datFile.writeInt(8); // [id값 길이] Long 타입이라 8 고정
             datFile.writeLong(order.getId()); // [id 값]
@@ -98,6 +99,10 @@ public class OrderRepository
 
             datFile.writeInt(4); // count 값 길이. int 타입이라 4 고정
             datFile.writeInt(order.getCount()); // count 값 설정
+
+            byte[] statusBytes = order.getStatus().name().getBytes();
+            datFile.writeInt(statusBytes.length); // [status값 길이] (가변)
+            datFile.write(statusBytes); // [status 값]
 
             // 저장한 id와 위치를 idx 파일에 기록한다.
             idxFile.seek(idxFile.length());
@@ -147,14 +152,14 @@ public class OrderRepository
         if (order.getId() == null)
         {
             persist(order, true);
-            return new Order(order.getId(), order.getProductId(), order.getCount()); // 새로운 엔티티 return
+            return new Order(order.getId(), order.getProductId(), order.getCount(), order.getStatus()); // 새로운 엔티티 return
         }
 
         Order findOrder = findById(order.getId()).orElseGet(null);
         if (findOrder == null)
         {
             persist(order, true);
-            return new Order(order.getId(), order.getProductId(), order.getCount()); // 새로운 엔티티 return
+            return new Order(order.getId(), order.getProductId(), order.getCount(), order.getStatus()); // 새로운 엔티티 return
         }
 
         if (logTxn)
@@ -174,7 +179,7 @@ public class OrderRepository
             newPosition = datFile.length();
             datFile.seek(newPosition); // 파일 맨 뒤에 새로 값을 저장하기 위해 마지막으로 이동
 
-            datFile.writeInt(3); // [필드 수]
+            datFile.writeInt(4); // [필드 수]
 
             datFile.writeInt(8); // [id값 길이]
             datFile.writeLong(order.getId()); // [id 값]
@@ -184,6 +189,10 @@ public class OrderRepository
 
             datFile.writeInt(4); // [count 값 길이]
             datFile.writeInt(order.getCount()); // [count 값]
+
+            byte[] statusBytes = order.getStatus().name().getBytes();
+            datFile.writeInt(statusBytes.length); // [status값 길이] (가변)
+            datFile.write(statusBytes); // [status 값]
 
             long idxFileLength = idxFile.length();
             while (idxFile.getFilePointer() < idxFileLength)
@@ -217,7 +226,7 @@ public class OrderRepository
             tm.commitTxnLog();
         }
 
-        return new Order(order.getId(), order.getProductId(), order.getCount()); // 새로운 엔티티 return
+        return new Order(order.getId(), order.getProductId(), order.getCount(), order.getStatus()); // 새로운 엔티티 return
     }
 
     public void delete(long id) throws Exception
@@ -308,9 +317,9 @@ public class OrderRepository
                 datFile.seek(position);
 
                 int fieldCount = datFile.readInt(); // [필드 수]
-                if (fieldCount != 3)
+                if (fieldCount != 4)
                 {
-                    throw new IOException("[Repository.findById] 저장된 필드의 수가 3이 아님. fieldCount: " + fieldCount);
+                    throw new IOException("[Repository.findById] 저장된 필드의 수가 4이 아님. fieldCount: " + fieldCount);
                 }
 
                 int idLength = datFile.readInt(); // [id 값 길이]
@@ -334,7 +343,12 @@ public class OrderRepository
                 }
                 int findCount = datFile.readInt(); // [count 값]
 
-                return Optional.of(new Order(findId, findProductId, findCount));
+                int statusLength = datFile.readInt(); // [status 값 길이]
+                byte[] statusBytes = new byte[statusLength];
+                datFile.readFully(statusBytes);
+                OrderStatus findStatus = OrderStatus.fromString(new String(statusBytes)); // [status 값]
+
+                return Optional.of(new Order(findId, findProductId, findCount, findStatus));
             }
         }
         finally
@@ -454,9 +468,9 @@ public class OrderRepository
                 datFile.seek(position);
 
                 int fieldCount = datFile.readInt();
-                if (fieldCount != 3)
+                if (fieldCount != 4)
                 {
-                    throw new IOException("[Repository.findAll] 저장된 필드의 수가 3이 아님. fieldCount: " + fieldCount);
+                    throw new IOException("[Repository.findAll] 저장된 필드의 수가 4이 아님. fieldCount: " + fieldCount);
                 }
 
                 int idLength = datFile.readInt();
@@ -480,7 +494,12 @@ public class OrderRepository
                 }
                 int count = datFile.readInt();
 
-                products.add(new Order(id, productId, count));
+                int statusLength = datFile.readInt(); // [status 값 길이] 가변길이라 validation 생략
+                byte[] statusBytes = new byte[statusLength];
+                datFile.readFully(statusBytes);
+                OrderStatus status = OrderStatus.fromString(new String(statusBytes)); // [status 값]
+
+                products.add(new Order(id, productId, count, status));
             }
         }
         finally

@@ -22,10 +22,9 @@ services:
       KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:29092"
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT"
       KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"   # 자동 토픽 생성 비활성화
-    volumes:
-      - ./init-kafka.sh:/init-kafka.sh  # 스크립트 마운트
-    command: ["/bin/bash", "-c", "/init-kafka.sh && /etc/confluent/docker/run"]  # 스크립트 실행 후 Kafka 시작
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      
 
   schema-registry:
     image: confluentinc/cp-schema-registry:latest

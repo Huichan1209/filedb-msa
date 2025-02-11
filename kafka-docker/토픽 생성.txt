@@ -1,0 +1,9 @@
+kafka-topics --bootstrap-server localhost:9092 --create --topic order-created --partitions 3 --replication-factor 1
+kafka-topics --bootstrap-server localhost:9092 --create --topic stock-decreased --partitions 3 --replication-factor 1
+kafka-topics --bootstrap-server localhost:9092 --create --topic stock-decrease-failed --partitions 3 --replication-factor 1
+
+kafka-topics --bootstrap-server localhost:9092 --create --topic order-cancelled --partitions 3 --replication-factor 1
+kafka-topics --bootstrap-server localhost:9092 --create --topic stock-restored --partitions 3 --replication-factor 1
+kafka-topics --bootstrap-server localhost:9092 --create --topic order-cancel-failed --partitions 3 --replication-factor 1
+
+kafka-topics --list --bootstrap-server localhost:9092

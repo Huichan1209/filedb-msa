@@ -1,0 +1,17 @@
+package com.example.product.kafka.event;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@ToString
+public class OrderCreatedEvent
+{
+    private Long orderId;
+    private Long productId;
+    private int count;
+}
