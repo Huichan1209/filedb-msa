@@ -100,11 +100,11 @@
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                alert('Order added successfully!');
+                alert('주문 등록 성공');
                 fetchOrders();
                 document.getElementById('orderForm').reset();
             } else {
-                alert('Failed to add order.');
+                alert('주문 등록 실패');
             }
         });
     }
@@ -116,10 +116,10 @@
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                alert('Order deleted successfully!');
+                alert('주문 취소 성공');
                 fetchOrders();
             } else {
-                alert('Failed to delete order.');
+                alert('주문 취소 실패');
             }
         });
     }
