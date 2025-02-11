@@ -6,3 +6,5 @@ https://nine-week-6e6.notion.site/Spring-Cloud-MSA-1846cfeb5e1d8028a3b2d3ae2ab57
 
 Config Repository
 https://github.com/Huichan1209/filedb-msa-config
+
+jdk 17, Spring 2.7.15, Spring cloud 2021.0.8
